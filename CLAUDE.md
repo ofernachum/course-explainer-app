@@ -1,38 +1,26 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository..
 
 ## Project Overview
 
-This is a Flask-based web application that displays course information. The application uses a simple MVC-style architecture with Flask handling routing, view functions rendering templates, and a Course model managing course data.
+Flask-based web application displaying course information. MVC-style: routes in `app.py`, view logic in `views.py`, data in `models.py`.
 
-## Development Environment
+## Commands
 
 ### Setup
-
 ```bash
-# Windows
 python -m venv venv
-venv\Scripts\activate
-
-# Unix/Mac
-python -m venv venv
-source venv/bin/activate
-
-# Install dependencies
+venv\Scripts\activate  # Windows: venv\Scripts\activate | Unix: source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Running the Application
-
+### Run
 ```bash
-python src/app.py
+python src/app.py  # http://127.0.0.1:5000
 ```
 
-The application will be available at `http://127.0.0.1:5000`
-
-### Running Tests
-
+### Test
 ```bash
 # Run all tests
 python -m unittest discover -s tests
@@ -40,55 +28,57 @@ python -m unittest discover -s tests
 # Run a specific test file
 python -m unittest tests.test_app
 
-# Run a specific test case
+# Run a single test case
 python -m unittest tests.test_app.AppTestCase.test_index
 ```
 
 ## Architecture
 
-### Application Structure
-
-The application follows a modular Flask design:
-
-- **src/app.py**: Application entry point and Flask configuration. Routes are registered using `add_url_rule()` rather than decorators, which allows views to remain decoupled from Flask.
-- **src/views.py**: View functions that handle HTTP requests and return rendered templates. Views are pure functions that don't depend on Flask decorators.
-- **src/models.py**: Data models (currently in-memory Course objects stored in a list). No database backend - all course data is hardcoded.
-- **src/templates/**: Jinja2 HTML templates with inheritance structure (layout.html as base)
-- **src/static/css/**: CSS stylesheets for the application
-
-### Key Design Patterns
-
-1. **Separation of concerns**: Routes (app.py), view logic (views.py), and data (models.py) are separated into distinct modules.
-2. **Template inheritance**: Templates use Jinja2's extends/block pattern with layout.html as the base template.
-3. **Manual route registration**: Routes are registered with `add_url_rule()` instead of `@app.route()` decorators, allowing view functions to be imported and registered separately.
+- **src/app.py**: App entry point. Routes registered via `add_url_rule()` (not decorators) to keep views decoupled from Flask.
+- **src/views.py**: Pure view functions — no Flask decorators. Imports `render_template` and `request` from Flask.
+- **src/models.py**: In-memory `Course` objects in a module-level `courses` list. No ORM or database.
+- **src/templates/**: Jinja2 templates. `layout.html` is the base; all others extend it.
+- **src/static/css/**: Stylesheets.
 
 ### Data Model
 
-- Course data is stored in-memory as a list of Course objects in models.py
-- No database or persistence layer exists
-- To add new courses, modify the `courses` list in models.py
+`Course(title, description, instructor, duration, topics=[])` — plain Python class, no ORM.
+
+All course data is hardcoded in `models.py`. Course URL IDs are **1-based**: `/course/1` maps to `courses[0]`.
+
+## Routes
+
+| Route | Methods | View |
+|---|---|---|
+| `/` | GET | `index` — lists all courses |
+| `/course/<course_id>` | GET | `course` — 1-based index lookup; 404 if out of range |
+| `/contact` | GET, POST | `contact` — form render (GET) or validation/processing (POST) |
+
+Contact form validates: name (required), email (regex), address (required, min 10 chars). Errors re-render inline; success renders with `success=True`.
 
 ## Important Notes
 
-- The views.py module imports only `render_template` from Flask, maintaining loose coupling
-- Course IDs in URLs are currently just passed to templates but not used to look up actual Course objects
-- The .env file contains Flask configuration (FLASK_APP and FLASK_ENV)
-- Virtual environment (venv/) should not be committed to version control
+- Run from repo root: `python src/app.py` — Flask resolves templates/static relative to `src/`
+- Tests insert `src/` into `sys.path`; follow this pattern when adding new test files
+- `.env` sets `FLASK_APP` and `FLASK_ENV` via `python-dotenv`
+- `requirements.txt` includes `gunicorn` for production deployment
+
+## Custom Commands & Agents
+
+Available slash commands:
+- `/implement_ui_user_story <story>` — Orchestrates Design → Implement → Verify workflow for UI features
+- `/explain_this_file` — Explains a file in simple, non-technical terms
+
+Agents in `.claude/agents/`:
+- `ui-testing-agent` — Launch after implementing UI features to visually verify and screenshot
+- `ux-design-planner` — Launch before coding UI features to plan layout and interactions
+
+## GitHub Actions
+
+CI is configured in `.github/workflows/claude.yml`. Claude can be triggered on issues and PRs by mentioning `@claude` in comments or issue bodies.
 
 ## Development Workflow
 
-### Add Unit Tests
-
-- Whenever you add any changes add unit tests and run and make sure the tests passes.
-
-### Verify Changes with Playwright (MANDATORY)
-
-**After implementing any new feature, you MUST:**
-
-1. Start the Flask application (if not already running - `python src/app.py`)
-2. Use the Playwright MCP tool to connect to the application at `http://127.0.0.1:5000`
-3. Navigate to and interact with the new feature to verify it works correctly
-4. Take a screenshot of the working feature
-5. Save the screenshot in the `test-output/` folder with a descriptive filename (e.g., `feature-name-verification-YYYY-MM-DD.png`)
-
-This step ensures that all features are visually verified and provides documentation of the working state of the application.
+1. Add unit tests for any changes; run and ensure they pass before finishing
+2. After implementing any feature, use the Playwright MCP tool to verify visually at `http://127.0.0.1:5000`
+3. Save verification screenshots to `test-output/` with descriptive filenames (e.g., `feature-name-YYYY-MM-DD.png`)
